@@ -2,7 +2,8 @@
 namespace frontend\tests\unit\models;
 
 use common\fixtures\UserFixture;
-use frontend\models\SignupForm;
+use frontend\forms\SignupForm;
+use frontend\services\auth\SignupService;
 
 class SignupFormTest extends \Codeception\Test\Unit
 {
@@ -24,15 +25,22 @@ class SignupFormTest extends \Codeception\Test\Unit
 
     public function testCorrectSignup()
     {
-        $model = new SignupForm([
+        $form = new SignupForm([
             'username' => 'some_username',
             'email' => 'some_email@example.com',
             'password' => 'some_password',
         ]);
+        //$user = $form->signup();
 
-        $user = $model->signup();
 
-        expect($user)->isInstanceOf('common\models\User');
+
+        if ($form->validate()) $user = (new SignupService())->signup($form);
+
+
+
+
+
+        expect($user)->isInstanceOf('common\entities\User');
 
         expect($user->username)->equals('some_username');
         expect($user->email)->equals('some_email@example.com');
@@ -41,19 +49,22 @@ class SignupFormTest extends \Codeception\Test\Unit
 
     public function testNotCorrectSignup()
     {
-        $model = new SignupForm([
+        $form = new SignupForm([
             'username' => 'troy.becker',
             'email' => 'nicolas.dianna@hotmail.com',
             'password' => 'some_password',
         ]);
 
-        expect_not($model->signup());
-        expect_that($model->getErrors('username'));
-        expect_that($model->getErrors('email'));
+        $user = null;
+        if ($form->validate()) $user = (new SignupService())->signup($form);
 
-        expect($model->getFirstError('username'))
+        expect_not($user);
+        expect_that($form->getErrors('username'));
+        expect_that($form->getErrors('email'));
+
+        expect($form->getFirstError('username'))
             ->equals('This username has already been taken.');
-        expect($model->getFirstError('email'))
+        expect($form->getFirstError('email'))
             ->equals('This email address has already been taken.');
     }
 }
