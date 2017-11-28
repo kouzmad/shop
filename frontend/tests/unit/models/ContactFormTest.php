@@ -8,16 +8,17 @@ class ContactFormTest extends \Codeception\Test\Unit
 {
     public function testSendEmail()
     {
-        $model = new ContactForm();
+        $form = new ContactForm();
 
-        $model->attributes = [
+        $form->attributes = [
             'name' => 'Tester',
             'email' => 'tester@example.com',
             'subject' => 'very important letter subject',
             'body' => 'body of current message',
         ];
 
-        expect_that($model->sendEmail('admin@example.com'));
+        // todo - переписать, чтобы через другой отправщик шли сообщения
+        expect_that($form->sendEmail('admin@example.com'));
 
         // using Yii2 module actions to check email was sent
         $this->tester->seeEmailIsSent();

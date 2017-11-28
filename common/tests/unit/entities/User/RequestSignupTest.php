@@ -2,19 +2,17 @@
 /**
  * Created by PhpStorm.
  * User: kouzma
- * Date: 24.11.2017
- * Time: 13:43
  */
 
 namespace unit\entities\User;
 use Codeception\Test\Unit;
 use common\entities\User;
 
-class SignUpTest extends Unit
+class RequestSignupTest extends Unit
 {
     public function testSuccess() {
 
-        $user = User::signupWithoutConfirmation(
+        $user = User::requestSignup(
             $username= 'username',
             $email = 'email@site.com',
             $password = 'password'
@@ -26,7 +24,10 @@ class SignUpTest extends Unit
         $this->assertNotEquals($password, $user->password_hash);
         $this->assertNotEmpty($user->created_at);
         $this->assertNotEmpty($user->auth_key);
-        $this->assertTrue($user->isActive());
+        $this->assertNotEmpty($user->email_confirm_token);
+        $this->assertTrue($user->isWait());
+        $this->assertFalse($user->isActive());
+
 
     }
 }

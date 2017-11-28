@@ -26,10 +26,23 @@ class User extends ActiveRecord implements IdentityInterface
 {
 
     //use common\entities\InstantiateTrait;
-    const STATUS_DELETED = 0;
+    const STATUS_WAIT = 0;
     const STATUS_ACTIVE = 10;
 
-    public static function signup(string $username, string $email, string $password) : self
+    public static function requestSignup(string $username, string $email, string $password) : self
+    {
+        $user = new static();
+        $user->username = $username;
+        $user->email = $email;
+        $user->setPassword($password);
+        $user->created_at = time();
+        $user->status = self::STATUS_WAIT;
+        $user->generateEmailConfirmToken();
+        $user->generateAuthKey();
+        return $user;
+    }
+
+    public static function signupWithoutConfirmation(string $username, string $email, string $password) : self
     {
         $user = new static();
         $user->username = $username;
@@ -45,6 +58,33 @@ class User extends ActiveRecord implements IdentityInterface
     {
         return $this->status == self::STATUS_ACTIVE;
     }
+    public function isWait() : bool
+    {
+        return $this->status == self::STATUS_WAIT;
+    }
+
+    public function confirmSignup(): void
+    {
+        if(!$this->isWait()){
+            throw new \DomainException('User is already active.');
+        }
+        $this->status = self::STATUS_ACTIVE;
+        $this->removeEmailConfirmToken();
+    }
+
+    private function generateEmailConfirmToken()
+    {
+        $this->email_confirm_token = Yii::$app->security->generateRandomString();
+    }
+
+    private function removeEmailConfirmToken()
+    {
+        $this->email_confirm_token = null;
+    }
+
+
+
+
 
     /**
      * @inheritdoc
@@ -71,7 +111,7 @@ class User extends ActiveRecord implements IdentityInterface
     {
         return [
             ['status', 'default', 'value' => self::STATUS_ACTIVE],
-            ['status', 'in', 'range' => [self::STATUS_ACTIVE, self::STATUS_DELETED]],
+            ['status', 'in', 'range' => [self::STATUS_ACTIVE, self::STATUS_WAIT]],
         ];
     }
 
@@ -113,9 +153,16 @@ class User extends ActiveRecord implements IdentityInterface
         if (!static::isPasswordResetTokenValid($token)) {
             return null;
         }
-
+        /*
+        echo 'r6jbrQ9In1RYYPiBSfK8I4I6mh975uv2_1511543816';
+        echo '<br>';
+        echo $token;
+        echo '<br>';
+        */
         return static::findOne([
+            //'password_reset_token' => 'r6jbrQ9In1RYYPiBSfK8I4I6mh975uv2_1511543816',
             'password_reset_token' => $token,
+            //'username' => 'kouzma',
             'status' => self::STATUS_ACTIVE,
         ]);
     }
@@ -177,7 +224,7 @@ class User extends ActiveRecord implements IdentityInterface
      *
      * @param string $password
      */
-    public function setPassword($password)
+    private function setPassword($password)
     {
         $this->password_hash = Yii::$app->security->generatePasswordHash($password);
     }
@@ -185,7 +232,7 @@ class User extends ActiveRecord implements IdentityInterface
     /**
      * Generates "remember me" authentication key
      */
-    public function generateAuthKey()
+    private function generateAuthKey()
     {
         $this->auth_key = Yii::$app->security->generateRandomString();
     }
@@ -193,7 +240,7 @@ class User extends ActiveRecord implements IdentityInterface
     /**
      * Generates new password reset token
      */
-    public function generatePasswordResetToken()
+    private function generatePasswordResetToken()
     {
         $this->password_reset_token = Yii::$app->security->generateRandomString() . '_' . time();
     }
@@ -201,7 +248,7 @@ class User extends ActiveRecord implements IdentityInterface
     /**
      * Removes password reset token
      */
-    public function removePasswordResetToken()
+    private function removePasswordResetToken()
     {
         $this->password_reset_token = null;
     }
