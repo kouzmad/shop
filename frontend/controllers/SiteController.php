@@ -1,77 +1,13 @@
 <?php
 namespace frontend\controllers;
 
-use frontend\services\auth\PasswordResetService;
-use frontend\services\auth\SignupService;
-use frontend\services\contact\ContactService;
-use Yii;
-use yii\base\InvalidParamException;
-use yii\web\BadRequestHttpException;
 use yii\web\Controller;
-use yii\filters\VerbFilter;
-use yii\filters\AccessControl;
-use common\forms\LoginForm;
-use common\entities\User;
-use frontend\forms\PasswordResetRequestForm;
-use frontend\forms\ResetPasswordForm;
-use frontend\forms\SignupForm;
-use frontend\forms\ContactForm;
 
 /**
  * Site controller
  */
 class SiteController extends Controller
 {
-
-    private $passordResetService;
-    private $contactService;
-    private $signupService;
-
-    public function __construct(
-        $id,
-        $module,
-        PasswordResetService $passwordResetService,
-        ContactService $contactService,
-        SignupService $signupService,
-        $config =[]
-    )
-    {
-        parent::__construct($id, $module, $config);
-        $this->passordResetService = $passwordResetService;
-        $this->signupService = $signupService;
-
-    }
-    /**
-     * @inheritdoc
-     */
-    public function behaviors()
-    {
-        return [
-            'access' => [
-                'class' => AccessControl::className(),
-                'only' => ['logout', 'signup'],
-                'rules' => [
-                    [
-                        'actions' => ['signup'],
-                        'allow' => true,
-                        'roles' => ['?'],
-                    ],
-                    [
-                        'actions' => ['logout'],
-                        'allow' => true,
-                        'roles' => ['@'],
-                    ],
-                ],
-            ],
-            'verbs' => [
-                'class' => VerbFilter::className(),
-                'actions' => [
-                    'logout' => ['post'],
-                ],
-            ],
-        ];
-    }
-
     /**
      * @inheritdoc
      */
@@ -89,8 +25,6 @@ class SiteController extends Controller
     }
 
     /**
-     * Displays homepage.
-     *
      * @return mixed
      */
     public function actionIndex()
@@ -99,232 +33,10 @@ class SiteController extends Controller
     }
 
     /**
-     * Logs in a user.
-     *
-     * @return mixed
-     */
-    public function actionLogin()
-    {
-        if (!Yii::$app->user->isGuest) {
-            return $this->goHome();
-        }
-
-        $model = new LoginForm();
-        if ($model->load(Yii::$app->request->post()) && $model->login()) {
-            return $this->goBack();
-        } else {
-            return $this->render('login', [
-                'model' => $model,
-            ]);
-        }
-    }
-
-    /**
-     * Logs out the current user.
-     *
-     * @return mixed
-     */
-    public function actionLogout()
-    {
-        Yii::$app->user->logout();
-
-        return $this->goHome();
-    }
-
-    /**
-     * Displays contact page.
-     *
-     * @return mixed
-     */
-    public function actionContact()
-    {
-        $form = new ContactForm();
-        if ($form->load(Yii::$app->request->post()) && $form->validate()) {
-            try {
-                $this->contactService->send($form);
-                Yii::$app->session->setFlash('success', 'Thank you for contacting us. We will respond to you as soon as possible.');
-                return $this->goHome();
-            }
-            catch (\DomainException $e) {
-                Yii::$app->errorHandler->logException($e);
-                Yii::$app->session->setFlash('error', 'There was an error sending your message.');
-            }
-
-            /*
-            if ($form->sendEmail(Yii::$app->params['adminEmail'])) {
-                Yii::$app->session->setFlash('success', 'Thank you for contacting us. We will respond to you as soon as possible.');
-            } else {
-                Yii::$app->session->setFlash('error', 'There was an error sending your message.');
-            }*/
-
-            return $this->refresh();
-        } else {
-            return $this->render('contact', [
-                'model' => $form,
-            ]);
-        }
-    }
-
-    /**
-     * Displays about page.
-     *
      * @return mixed
      */
     public function actionAbout()
     {
         return $this->render('about');
-    }
-
-    /**
-     * Signs user up.
-     *
-     * @return mixed
-     */
-    public function actionSignupPrev()
-    {
-        $form = new SignupForm();
-        /*if ($form->load(Yii::$app->request->post())) {
-
-            if ($user = $form->signup()) {
-                if (Yii::$app->getUser()->login($user)) {
-                    return $this->goHome();
-                }
-            }*/
-        if ($form->load(Yii::$app->request->post()) && $form->validate()) {
-            //$user = User::signup($form->username, $form->email, $form->password);
-            $this->signupService->signup($form);
-            //$user = (new SignupService())->signup($form);
-            if (Yii::$app->getUser()->login($user)) {
-                return $this->goHome();
-            }
-        }
-
-        return $this->render('signup', [
-            'model' => $form,
-        ]);
-    }
-    /**
-     * Signs user up.
-     *
-     * @return mixed
-     */
-    public function actionSignup()
-    {
-        $form = new SignupForm();
-        if ($form->load(Yii::$app->request->post()) && $form->validate()) {
-            try {
-                $this->signupService->signup($form);
-                Yii::$app->session->setFlash('success', 'Check your email for further instructions.');
-                return $this->goHome();
-            }
-            catch (\DomainException $e) {
-                Yii::$app->errorHandler->logException($e);
-                Yii::$app->session->setFlash('error', $e->getMessage());
-            }
-        }
-
-        return $this->render('signup', [
-            'model' => $form,
-        ]);
-    }
-
-    public function actionConfirm($token)
-    {
-        try {
-            $this->signupService->confirm($token);
-            Yii::$app->session->setFlash('success', 'Your email is confirmed.');
-            return $this->redirect(['login']);
-        }
-        catch (\DomainException $e) {
-            Yii::$app->errorHandler->logException($e);
-            Yii::$app->session->setFlash('error', $e->getMessage());
-            return $this->goHome();
-        }
-
-    }
-
-    /**
-     * Requests password reset.
-     *
-     * @return mixed
-     */
-    public function actionRequestPasswordReset()
-    {
-        $form = new PasswordResetRequestForm();
-        if ($form->load(Yii::$app->request->post()) && $form->validate()) {
-            try {
-                $this->passordResetService->request($form);
-                Yii::$app->session->setFlash('success', 'Check your email for further instructions.');
-                return $this->goHome();
-            }
-            catch (\DomainException $e) {
-                Yii::$app->errorHandler->logException($e);
-                Yii::$app->session->setFlash('error', $e->getMessage());
-            }
-
-
-            /*
-            if ($form->sendEmail()) {
-                Yii::$app->session->setFlash('success', 'Check your email for further instructions.');
-
-                return $this->goHome();
-            } else {
-                Yii::$app->session->setFlash('error', 'Sorry, we are unable to reset password for the provided email address.');
-            }
-            */
-        }
-
-        return $this->render('requestPasswordResetToken', [
-            'model' => $form,
-        ]);
-    }
-
-    /**
-     * Resets password.
-     *
-     * @param string $token
-     * @return mixed
-     * @throws BadRequestHttpException
-     */
-    public function actionResetPassword($token)
-    {
-        //$service = Yii::$container->get(PasswordResetService::class);
-        //$service = new PasswordResetService();
-
-
-        try {
-            $this->passordResetService->validateToken($token);
-        } catch (\DomainException $e) {
-            throw new BadRequestHttpException($e->getMessage());
-        }
-        /*
-        try {
-            $model = new ResetPasswordForm($token);
-        } catch (InvalidParamException $e) {
-            throw new BadRequestHttpException($e->getMessage());
-        }*/
-
-        $form = new ResetPasswordForm();
-        if ($form->load(Yii::$app->request->post()) && $form->validate()) {
-            try {
-                $this->passordResetService->reset($token, $form);
-                Yii::$app->session->setFlash('success', 'New password saved.');
-            }
-            catch (\DomainException $e) {
-                Yii::$app->errorHandler->logException($e);
-                Yii::$app->session->setFlash('error', $e->getMessage());
-            }
-            return $this->goHome();
-        }
-        /*
-        if ($form->load(Yii::$app->request->post()) && $form->validate() && $form->resetPassword()) {
-            Yii::$app->session->setFlash('success', 'New password saved.');
-
-            return $this->goHome();
-        }*/
-
-        return $this->render('resetPassword', [
-            'model' => $form,
-        ]);
     }
 }

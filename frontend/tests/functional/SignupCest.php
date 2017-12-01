@@ -11,7 +11,7 @@ class SignupCest
 
     public function _before(FunctionalTester $I)
     {
-        $I->amOnRoute('site/signup');
+        $I->amOnRoute('auth/signup/request');
     }
 
     public function signupWithEmptyFields(FunctionalTester $I)
@@ -47,11 +47,11 @@ class SignupCest
             'SignupForm[password]' => 'tester_password',
         ]);
 
-        $I->seeRecord('common\entities\User', [
+        $I->seeRecord('shop\entities\User\User', [
             'username' => 'tester',
             'email' => 'tester.email@example.com',
         ]);
 
-        $I->see('Logout (tester)', 'form button[type=submit]');
+        $I->see('Check your email for further instructions.');
     }
 }
